@@ -13,6 +13,7 @@
             --board-cell: #0f3460;
             --text-color: #e94560;
             --accent: #e94560;
+            --secondary-btn: rgba(255, 255, 255, 0.1);
             --modal-bg: rgba(22, 33, 62, 0.95);
         }
 
@@ -105,14 +106,12 @@
         /* PIECES */
         .piece {
             position: relative;
-            /* No background color for container! */
             display: grid;
             gap: var(--gap);
             cursor: grab;
             touch-action: none;
             z-index: 10;
             transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            /* Padding ensures touch target is decent but doesn't affect visual layout */
             padding: 0; 
         }
 
@@ -121,15 +120,14 @@
             z-index: 100;
             transform: scale(1.1);
             filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
-            position: fixed; /* Fixed allows smooth drag outside containers */
-            pointer-events: none; /* Let clicks pass through to detect drop targets */
+            position: fixed;
+            pointer-events: none;
         }
         
         .piece.invalid .piece-cell {
-            background: #ff4757 !important; /* Red error color */
+            background: #ff4757 !important;
             box-shadow: 0 0 10px rgba(255, 71, 87, 0.6);
             opacity: 0.8;
-            /* Striped pattern */
             background-image: repeating-linear-gradient(
                 45deg,
                 transparent,
@@ -144,7 +142,6 @@
             height: var(--cell-size);
             border-radius: 4px;
             box-shadow: inset 0 -2px 0 rgba(0,0,0,0.2), 0 2px 5px rgba(0,0,0,0.2);
-            /* Colors set via inline style or specific class */
         }
 
         /* Unique Colors for Shapes */
@@ -158,6 +155,12 @@
         .color-7 .piece-cell { background: #fb8500; } /* Orange */
         .color-8 .piece-cell { background: #ef476f; } /* Reddish */
 
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
         .btn {
             background: var(--accent);
             color: white;
@@ -167,14 +170,22 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
             box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
             transition: transform 0.1s, box-shadow 0.1s;
         }
         .btn:active { transform: scale(0.96); }
 
-        /* Modal */
-        #message {
+        .btn.secondary {
+            background: var(--secondary-btn);
+            box-shadow: none;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .btn.secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* Modals */
+        #message, #input-modal {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
             background: var(--modal-bg);
@@ -187,15 +198,41 @@
             backdrop-filter: blur(10px);
         }
         
-        #message h2 { font-size: 2.5rem; margin-bottom: 10px; color: #4cc9f0; }
+        #message h2, #input-modal h2 { font-size: 2.5rem; margin-bottom: 10px; color: #4cc9f0; }
         
+        #code-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.5rem;
+            text-align: center;
+            text-transform: uppercase;
+            margin: 20px 0;
+            width: 180px;
+            outline: none;
+            font-family: monospace;
+            letter-spacing: 2px;
+        }
+        #code-input:focus {
+            border-color: var(--accent);
+        }
+
+        #footer-code {
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: monospace;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #footer-code:hover { color: rgba(255, 255, 255, 0.6); }
+
         /* Mobile Scale */
         @media (max-width: 500px) {
-            /* Dynamic calculation for cell size:
-               (100vw - total_horizontal_padding) / 8 cells
-               Padding breakdown: 20px body left + 20px body right + 10px board left + 10px board right = 60px
-               Added extra safety margin (70px) to ensure no overflow
-            */
             :root { 
                 --cell-size: calc((100vw - 70px) / 8); 
                 --gap: 2px; 
@@ -227,47 +264,105 @@
             <!-- Pieces -->
         </div>
     </div>
+    
+    <div id="footer-code" title="Click to copy puzzle link" onclick="copyFooterLink()">
+        Puzzle: <span id="puzzle-code-display">---</span>
+    </div>
 
-    <button class="btn" onclick="initGame()">New Puzzle</button>
+    <div class="controls">
+        <button class="btn secondary" onclick="openInputModal()">Load Puzzle</button>
+        <button class="btn" onclick="initGame()">New Puzzle</button>
+    </div>
 
+    <!-- Win Modal -->
     <div id="message">
         <h2>SOLVED!</h2>
         <p>Time: <span id="final-time" style="font-weight:bold; font-size: 1.5rem;"></span></p>
-        <button class="btn" style="background: white; color: #16213e;" onclick="closeModalAndRestart()">Play Again</button>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" style="background: white; color: #16213e;" onclick="closeModalAndRestart()">Play Again</button>
+            <button class="btn" style="background: #4cc9f0; color: #16213e;" onclick="shareResult()">Share Result</button>
+        </div>
+    </div>
+
+    <!-- Input Modal -->
+    <div id="input-modal">
+        <h2>ENTER CODE</h2>
+        <input type="text" id="code-input" maxlength="10" placeholder="CODE">
+        <div style="display: flex; gap: 10px;">
+            <button class="btn secondary" onclick="closeInputModal()">Cancel</button>
+            <button class="btn" onclick="submitCode()">Load</button>
+        </div>
     </div>
 
 <script>
     const BOARD_SIZE = 8;
     
-    // Define pieces. We give each a color index.
     const PIECE_DEFS = [
         { id: 'b1', shape: [[1]], type: 'black', color: 'black' },
         { id: 'b2', shape: [[1, 1]], type: 'black', color: 'black' },
         { id: 'b3', shape: [[1, 1, 1]], type: 'black', color: 'black' },
         
-        { id: 'p1', shape: [[1, 1, 1, 1]], type: 'play', color: '1' }, // 1x4
-        { id: 'p2', shape: [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]], type: 'play', color: '2' }, // 3x4
-        { id: 'p3', shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], type: 'play', color: '3' }, // 3x3
-        { id: 'p4', shape: [[1, 1, 1], [1, 1, 1]], type: 'play', color: '4' }, // 2x3
-        { id: 'p5', shape: [[1, 1], [1, 1]], type: 'play', color: '5' }, // 2x2
-        { id: 'p6', shape: [[1, 1, 1, 1, 1]], type: 'play', color: '6' }, // 1x5
-        { id: 'p7', shape: [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]], type: 'play', color: '7' }, // 5x2
-        { id: 'p8', shape: [[1, 1], [1, 1], [1, 1], [1, 1]], type: 'play', color: '8' } // 4x2
+        { id: 'p1', shape: [[1, 1, 1, 1]], type: 'play', color: '1' },
+        { id: 'p2', shape: [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]], type: 'play', color: '2' },
+        { id: 'p3', shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], type: 'play', color: '3' },
+        { id: 'p4', shape: [[1, 1, 1], [1, 1, 1]], type: 'play', color: '4' },
+        { id: 'p5', shape: [[1, 1], [1, 1]], type: 'play', color: '5' },
+        { id: 'p6', shape: [[1, 1, 1, 1, 1]], type: 'play', color: '6' },
+        { id: 'p7', shape: [[1, 1], [1, 1], [1, 1], [1, 1], [1, 1]], type: 'play', color: '7' },
+        { id: 'p8', shape: [[1, 1], [1, 1], [1, 1], [1, 1]], type: 'play', color: '8' }
     ];
 
     let gameState = {
         timerStart: null,
         timerInterval: null,
-        solved: false
+        solved: false,
+        currentCode: ''
     };
 
     const boardEl = document.getElementById('board');
     const inventoryEl = document.getElementById('inventory');
     const boardContainer = document.getElementById('board-container');
+    const codeDisplay = document.getElementById('puzzle-code-display');
+
+    // --- Boot ---
+    window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('p');
+        
+        // Handle enter key in input
+        document.getElementById('code-input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') submitCode();
+        });
+
+        if (code) {
+            initGame(code);
+        } else {
+            initGame();
+        }
+    };
+
+    // --- Modal Logic ---
+    function openInputModal() {
+        document.getElementById('input-modal').style.display = 'flex';
+        document.getElementById('code-input').value = '';
+        setTimeout(() => document.getElementById('code-input').focus(), 100);
+    }
+
+    function closeInputModal() {
+        document.getElementById('input-modal').style.display = 'none';
+    }
+
+    function submitCode() {
+        const code = document.getElementById('code-input').value.trim().toUpperCase();
+        if (code) {
+            initGame(code);
+            closeInputModal();
+        }
+    }
 
     // --- Init ---
 
-    function initGame() {
+    function initGame(forcedCode = null) {
         if (gameState.timerInterval) clearInterval(gameState.timerInterval);
         document.getElementById('timer').innerText = "00:00";
         document.getElementById('message').style.display = 'none';
@@ -276,8 +371,7 @@
         // Reset UI
         boardEl.innerHTML = '';
         inventoryEl.innerHTML = '';
-
-        // FIX: Remove existing pieces from the board container
+        
         const existingPieces = boardContainer.querySelectorAll('.piece');
         existingPieces.forEach(p => p.remove());
         
@@ -288,15 +382,26 @@
             boardEl.appendChild(cell);
         }
 
-        // Generate Level
         let success = false;
-        let attempts = 0;
-        while(!success && attempts < 20) {
-            try { success = generateLevel(); } catch(e) {}
-            attempts++;
-        }
         
-        if(!success) { alert("Generation failed. Trying again."); initGame(); return; }
+        if (forcedCode) {
+            // Load from code
+            success = loadFromCode(forcedCode);
+            if (!success) {
+                alert("Invalid puzzle code! Generating a random puzzle instead.");
+                window.history.replaceState({}, document.title, window.location.pathname);
+                initGame(); // Retry random
+                return;
+            }
+        } else {
+            // Generate Random
+            let attempts = 0;
+            while(!success && attempts < 20) {
+                try { success = generateLevel(); } catch(e) {}
+                attempts++;
+            }
+            if(!success) { alert("Generation failed. Trying again."); initGame(); return; }
+        }
 
         // Start Timer
         gameState.timerStart = Date.now();
@@ -309,7 +414,6 @@
     function generateLevel() {
         let logicalBoard = Array(8).fill().map(() => Array(8).fill(null));
         let genPieces = JSON.parse(JSON.stringify(PIECE_DEFS));
-        // Sort larger pieces first for better backtracking success
         genPieces.sort((a,b) => (b.shape.length * b.shape[0].length) - (a.shape.length * a.shape[0].length));
 
         if (!solveBoard(logicalBoard, genPieces, 0)) return false;
@@ -323,14 +427,149 @@
                 placePieceOnBoardUI(pieceEl, pos.r, pos.c, p.placedShape, true);
                 pieceEl.style.pointerEvents = 'none'; // Lock black pieces
             } else {
-                // Randomly rotate initially
                 if(Math.random() > 0.5) rotatePieceData(pieceEl);
                 inventoryEl.appendChild(pieceEl);
                 addInteraction(pieceEl, p.id);
             }
         });
+        
+        // Update Code
+        gameState.currentCode = encodePuzzleState();
+        codeDisplay.innerText = gameState.currentCode;
+        
         return true;
     }
+
+    function loadFromCode(code) {
+        const config = decodePuzzleState(code);
+        if (!config) return false;
+
+        gameState.currentCode = code;
+        codeDisplay.innerText = code;
+
+        // Place Black Pieces
+        // B1
+        let pB1 = PIECE_DEFS.find(p => p.id === 'b1');
+        let elB1 = createPieceElement(pB1); 
+        placePieceOnBoardUI(elB1, config.b1.r, config.b1.c, pB1.shape, true);
+        elB1.style.pointerEvents = 'none';
+
+        // B2
+        let pB2 = PIECE_DEFS.find(p => p.id === 'b2');
+        let elB2 = createPieceElement(pB2);
+        if (config.b2.rot === 1) rotatePieceData(elB2);
+        let currentShapeB2 = JSON.parse(elB2.dataset.matrix);
+        placePieceOnBoardUI(elB2, config.b2.r, config.b2.c, currentShapeB2, true);
+        elB2.style.pointerEvents = 'none';
+
+        // B3
+        let pB3 = PIECE_DEFS.find(p => p.id === 'b3');
+        let elB3 = createPieceElement(pB3);
+        if (config.b3.rot === 1) rotatePieceData(elB3);
+        let currentShapeB3 = JSON.parse(elB3.dataset.matrix);
+        placePieceOnBoardUI(elB3, config.b3.r, config.b3.c, currentShapeB3, true);
+        elB3.style.pointerEvents = 'none';
+
+        // Place Playable Pieces in Inventory
+        PIECE_DEFS.filter(p => p.type === 'play').forEach(p => {
+            let pieceEl = createPieceElement(p);
+            if(Math.random() > 0.5) rotatePieceData(pieceEl);
+            inventoryEl.appendChild(pieceEl);
+            addInteraction(pieceEl, p.id);
+        });
+
+        return true;
+    }
+
+    // --- Encoding / Decoding ---
+    
+    function encodePuzzleState() {
+        let val = 0;
+        
+        const getPieceInfo = (id) => {
+            const el = document.getElementById(id);
+            const r = parseInt(el.dataset.r);
+            const c = parseInt(el.dataset.c);
+            const rows = parseInt(el.dataset.rows);
+            const cols = parseInt(el.dataset.cols);
+            const rot = rows > cols ? 1 : 0;
+            return { r, c, rot };
+        };
+
+        const b1 = getPieceInfo('b1');
+        const b2 = getPieceInfo('b2');
+        const b3 = getPieceInfo('b3');
+
+        // B1 (6 bits)
+        val |= (b1.r & 7);         
+        val |= ((b1.c & 7) << 3);  
+
+        // B2 (7 bits)
+        val |= ((b2.r & 7) << 6);  
+        val |= ((b2.c & 7) << 9);  
+        val |= ((b2.rot & 1) << 12); 
+
+        // B3 (7 bits)
+        val |= ((b3.r & 7) << 13); 
+        val |= ((b3.c & 7) << 16); 
+        val |= ((b3.rot & 1) << 19); 
+
+        return val.toString(36).toUpperCase();
+    }
+
+    function decodePuzzleState(code) {
+        const val = parseInt(code, 36);
+        if (isNaN(val)) return null;
+
+        return {
+            b1: {
+                r: val & 7,
+                c: (val >> 3) & 7
+            },
+            b2: {
+                r: (val >> 6) & 7,
+                c: (val >> 9) & 7,
+                rot: (val >> 12) & 1
+            },
+            b3: {
+                r: (val >> 13) & 7,
+                c: (val >> 16) & 7,
+                rot: (val >> 19) & 1
+            }
+        };
+    }
+
+    // --- Sharing ---
+
+    function shareResult() {
+        const time = document.getElementById('final-time').innerText;
+        const code = gameState.currentCode;
+        const url = window.location.href.split('?')[0] + '?p=' + code;
+        
+        const text = `🧩 I solved Block Fit puzzle #${code} in ${time}!\n\nPlay it here: ${url}`;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelector('#message button:last-child');
+            const originalText = btn.innerText;
+            btn.innerText = "Copied!";
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }).catch(err => {
+            prompt("Copy this link:", text);
+        });
+    }
+    
+    function copyFooterLink() {
+         const code = gameState.currentCode;
+         const url = window.location.href.split('?')[0] + '?p=' + code;
+         navigator.clipboard.writeText(url).then(() => {
+             const span = document.getElementById('puzzle-code-display');
+             const originalText = span.innerText;
+             span.innerText = "COPIED!";
+             setTimeout(() => span.innerText = originalText, 1000);
+         });
+    }
+
+    // --- Backtracking Solver ---
 
     function solveBoard(board, pieces, pieceIndex) {
         if (pieceIndex >= pieces.length) return true;
@@ -392,7 +631,7 @@
         return {r:0, c:0};
     }
 
-    // --- UI Creation ---
+    // --- UI Helpers ---
 
     function createPieceElement(pData) {
         let el = document.createElement('div');
@@ -405,7 +644,6 @@
     }
 
     function renderPieceGrid(el, shape) {
-        // We set the CSS grid of the piece itself
         el.style.gridTemplateRows = `repeat(${shape.length}, 1fr)`;
         el.style.gridTemplateColumns = `repeat(${shape[0].length}, 1fr)`;
         el.dataset.matrix = JSON.stringify(shape);
@@ -420,17 +658,14 @@
                 el.appendChild(cell);
             }
         }
-        // Force layout update for drag size
         updatePieceSize(el);
     }
     
     function updatePieceSize(el) {
-        // Robust measurement: Measure a real cell on the board
         const sampleCell = boardEl.children[0];
         if(!sampleCell) return;
         
         const cellRect = sampleCell.getBoundingClientRect();
-        // Use parseFloat from computed style for gap to be precise, or assume small int
         const root = getComputedStyle(document.documentElement);
         const gap = parseFloat(root.getPropertyValue('--gap')) || 3;
         
@@ -445,21 +680,16 @@
     }
 
     function placePieceOnBoardUI(el, r, c, shapeMatrix, isBlack) {
-        // Alignment FIX: Use actual DOM elements to determine position
-        // This avoids rounding errors from "38px" vs "10vw" calculations
-        
         const targetIndex = r * 8 + c;
         const targetCell = boardEl.children[targetIndex];
         
         if(!targetCell) return;
 
-        // Ensure element is in the container so relative offsets work
         boardContainer.appendChild(el);
         
         const cellRect = targetCell.getBoundingClientRect();
         const containerRect = boardContainer.getBoundingClientRect();
         
-        // Exact relative position
         const left = cellRect.left - containerRect.left;
         const top = cellRect.top - containerRect.top;
         
@@ -467,15 +697,13 @@
         el.style.left = left + 'px';
         el.style.top = top + 'px';
         
-        // Ensure size matches perfectly
         updatePieceSize(el);
 
-        // Store logical position
         el.dataset.r = r;
         el.dataset.c = c;
     }
 
-    // --- Interaction (Click & Drag) ---
+    // --- Interaction ---
 
     function addInteraction(el, id) {
         let isDragging = false;
@@ -486,7 +714,6 @@
 
         function start(e) {
             if (gameState.solved) return;
-            // if e is touch, prevent default to stop scroll
             if (e.type === 'touchstart') e.preventDefault();
             
             const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
@@ -494,14 +721,12 @@
             
             startX = clientX;
             startY = clientY;
-            hasMoved = false;
             isDragging = false;
             
             const rect = el.getBoundingClientRect();
             dragOffsetX = clientX - rect.left;
             dragOffsetY = clientY - rect.top;
 
-            // Prepare for drag but don't start visual drag until move
             document.addEventListener('mousemove', move);
             document.addEventListener('touchmove', move, {passive: false});
             document.addEventListener('mouseup', end);
@@ -513,7 +738,6 @@
             const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
             
             if (!isDragging) {
-                // Check threshold
                 if (Math.abs(clientX - startX) > dragThreshold || Math.abs(clientY - startY) > dragThreshold) {
                     isDragging = true;
                     startDrag(el, clientX, clientY);
@@ -528,7 +752,6 @@
 
         function startDrag(el, x, y) {
             el.classList.add('dragging');
-            // Move to body for z-index dominance
             const rect = el.getBoundingClientRect();
             document.body.appendChild(el);
             el.style.position = 'fixed';
@@ -545,10 +768,8 @@
             document.removeEventListener('touchend', end);
 
             if (!isDragging) {
-                // It was a click -> Rotate
                 handleRotation(el);
             } else {
-                // Drop logic
                 el.classList.remove('dragging');
                 handleDrop(el);
             }
@@ -560,9 +781,7 @@
 
     function handleRotation(el) {
         rotatePieceData(el);
-        // If on board, re-validate
         if (el.parentElement === boardContainer) {
-            // Re-snap to current position to fix any size changes
             let r = parseInt(el.dataset.r);
             let c = parseInt(el.dataset.c);
             let matrix = JSON.parse(el.dataset.matrix);
@@ -578,32 +797,26 @@
         const centerX = pieceRect.left + pieceRect.width/2;
         const centerY = pieceRect.top + pieceRect.height/2;
 
-        // Check if center is roughly inside board
         if (centerX > boardRect.left && centerX < boardRect.right &&
             centerY > boardRect.top && centerY < boardRect.bottom) {
             
-            // Get sizing from real DOM elements to be precise
             const root = getComputedStyle(document.documentElement);
             const sampleCell = boardEl.children[0];
             const cellSize = sampleCell.getBoundingClientRect().width;
             const gap = parseFloat(root.getPropertyValue('--gap')) || 3;
             
-            // Calculate grid index
-            // Relative to board content box
             const relativeX = pieceRect.left - boardRect.left;
             const relativeY = pieceRect.top - boardRect.top;
             
             const col = Math.round(relativeX / (cellSize + gap));
             const row = Math.round(relativeY / (cellSize + gap));
             
-            // Snap visual
             let matrix = JSON.parse(el.dataset.matrix);
             placePieceOnBoardUI(el, row, col, matrix, false);
             validateBoard();
         } else {
-            // Return to inventory
             returnToInventory(el);
-            validateBoard(); // Clear any red states from previous pos
+            validateBoard(); 
         }
     }
 
@@ -623,15 +836,10 @@
         renderPieceGrid(el, newMatrix);
     }
 
-    // --- Validation ---
-
     function validateBoard() {
-        // We have to check all pieces in boardContainer
         const pieces = Array.from(boardContainer.children).filter(c => c.classList.contains('piece'));
-        
-        // 1. Build a map of grid usage
         let grid = Array(8).fill().map(() => Array(8).fill(0));
-        let piecePositions = []; // Store {el, cells: [{r,c}]}
+        let piecePositions = []; 
         
         pieces.forEach(p => {
             let r = parseInt(p.dataset.r);
@@ -657,13 +865,9 @@
             piecePositions.push({ el: p, cells, isOutOfBounds });
         });
 
-        // 2. Mark invalid pieces
         let allValid = true;
-        
         piecePositions.forEach(item => {
             let isInvalid = item.isOutOfBounds;
-            
-            // Check overlaps
             if (!isInvalid) {
                 for(let cell of item.cells) {
                     if (grid[cell.r][cell.c] > 1) {
@@ -672,7 +876,6 @@
                     }
                 }
             }
-            
             if (isInvalid) {
                 item.el.classList.add('invalid');
                 allValid = false;
@@ -681,9 +884,6 @@
             }
         });
 
-        // 3. Check Win (Must use all pieces and be valid)
-        // Total pieces = 11 (3 black + 8 play)
-        // Inventory should be empty
         if (inventoryEl.children.length === 0 && allValid && pieces.length === PIECE_DEFS.length) {
             gameWon();
         }
@@ -696,7 +896,6 @@
         document.getElementById('final-time').innerText = timeStr;
         document.getElementById('message').style.display = 'flex';
         
-        // Save best
         let ms = Date.now() - gameState.timerStart;
         let currentBest = localStorage.getItem('blockFitBest');
         if (!currentBest || ms < parseInt(currentBest)) {
@@ -706,7 +905,7 @@
     }
 
     function closeModalAndRestart() {
-        document.getElementById('message').style.display = 'none';
+        window.history.replaceState({}, document.title, window.location.pathname);
         initGame();
     }
 
@@ -727,9 +926,6 @@
             document.getElementById('best-time').innerText = `${m}:${sec}`;
         }
     }
-
-    // Boot
-    window.onload = initGame;
 
 </script>
 </body>
