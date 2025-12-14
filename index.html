@@ -66,6 +66,9 @@
             background: var(--board-bg);
             border-radius: 12px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            /* Prevent overflow on small screens */
+            max-width: 100vw;
+            box-sizing: border-box;
         }
 
         #board {
@@ -96,6 +99,7 @@
             background: rgba(255,255,255,0.03);
             border-radius: 16px;
             border: 1px solid rgba(255,255,255,0.05);
+            box-sizing: border-box;
         }
 
         /* PIECES */
@@ -187,7 +191,15 @@
         
         /* Mobile Scale */
         @media (max-width: 500px) {
-            :root { --cell-size: 10vw; --gap: 2px; }
+            /* Dynamic calculation for cell size:
+               (100vw - total_horizontal_padding) / 8 cells
+               Padding breakdown: 20px body left + 20px body right + 10px board left + 10px board right = 60px
+               Added extra safety margin (70px) to ensure no overflow
+            */
+            :root { 
+                --cell-size: calc((100vw - 70px) / 8); 
+                --gap: 2px; 
+            }
             #game-area { width: 100%; }
         }
     </style>
@@ -266,7 +278,6 @@
         inventoryEl.innerHTML = '';
 
         // FIX: Remove existing pieces from the board container
-        // Since pieces are absolute positioned in the container, not the board div
         const existingPieces = boardContainer.querySelectorAll('.piece');
         existingPieces.forEach(p => p.remove());
         
@@ -414,43 +425,51 @@
     }
     
     function updatePieceSize(el) {
-        // Need to calculate precise width/height based on CSS variables
-        // This is important for dragging so the ghost element is the right size
+        // Robust measurement: Measure a real cell on the board
+        const sampleCell = boardEl.children[0];
+        if(!sampleCell) return;
+        
+        const cellRect = sampleCell.getBoundingClientRect();
+        // Use parseFloat from computed style for gap to be precise, or assume small int
         const root = getComputedStyle(document.documentElement);
-        // We parse the string "38px" to integer
-        const cellSize = parseInt(root.getPropertyValue('--cell-size')) || 38;
-        const gap = parseInt(root.getPropertyValue('--gap')) || 3;
+        const gap = parseFloat(root.getPropertyValue('--gap')) || 3;
         
         const rows = parseInt(el.dataset.rows);
         const cols = parseInt(el.dataset.cols);
         
-        const w = (cols * cellSize) + ((cols - 1) * gap);
-        const h = (rows * cellSize) + ((rows - 1) * gap);
+        const w = (cols * cellRect.width) + ((cols - 1) * gap);
+        const h = (rows * cellRect.height) + ((rows - 1) * gap);
         
         el.style.width = w + 'px';
         el.style.height = h + 'px';
     }
 
     function placePieceOnBoardUI(el, r, c, shapeMatrix, isBlack) {
-        const boardRect = boardEl.getBoundingClientRect();
-        const root = getComputedStyle(document.documentElement);
-        const cellSize = parseInt(root.getPropertyValue('--cell-size')) || 38;
-        const gap = parseInt(root.getPropertyValue('--gap')) || 3;
+        // Alignment FIX: Use actual DOM elements to determine position
+        // This avoids rounding errors from "38px" vs "10vw" calculations
         
-        // Append to container so we can position absolutely over the grid
+        const targetIndex = r * 8 + c;
+        const targetCell = boardEl.children[targetIndex];
+        
+        if(!targetCell) return;
+
+        // Ensure element is in the container so relative offsets work
         boardContainer.appendChild(el);
         
-        // Calculate offset within the board container (which has padding)
-        // Board padding is 10px in CSS
-        const padding = 10; 
+        const cellRect = targetCell.getBoundingClientRect();
+        const containerRect = boardContainer.getBoundingClientRect();
         
-        const left = padding + (c * (cellSize + gap));
-        const top = padding + (r * (cellSize + gap));
+        // Exact relative position
+        const left = cellRect.left - containerRect.left;
+        const top = cellRect.top - containerRect.top;
         
         el.style.position = 'absolute';
         el.style.left = left + 'px';
         el.style.top = top + 'px';
         
+        // Ensure size matches perfectly
+        updatePieceSize(el);
+
         // Store logical position
         el.dataset.r = r;
         el.dataset.c = c;
@@ -543,12 +562,11 @@
         rotatePieceData(el);
         // If on board, re-validate
         if (el.parentElement === boardContainer) {
-            // Need to update visual size immediately as rotation swaps w/h
-            // Already handled in rotatePieceData -> renderPieceGrid -> updatePieceSize
-            
-            // Re-snap to current cell if possible, or just validate in place?
-            // Rotation pivots top-left usually.
-            // Let's re-run validation.
+            // Re-snap to current position to fix any size changes
+            let r = parseInt(el.dataset.r);
+            let c = parseInt(el.dataset.c);
+            let matrix = JSON.parse(el.dataset.matrix);
+            placePieceOnBoardUI(el, r, c, matrix, false);
             validateBoard();
         }
     }
@@ -564,9 +582,11 @@
         if (centerX > boardRect.left && centerX < boardRect.right &&
             centerY > boardRect.top && centerY < boardRect.bottom) {
             
+            // Get sizing from real DOM elements to be precise
             const root = getComputedStyle(document.documentElement);
-            const cellSize = parseInt(root.getPropertyValue('--cell-size')) || 38;
-            const gap = parseInt(root.getPropertyValue('--gap')) || 3;
+            const sampleCell = boardEl.children[0];
+            const cellSize = sampleCell.getBoundingClientRect().width;
+            const gap = parseFloat(root.getPropertyValue('--gap')) || 3;
             
             // Calculate grid index
             // Relative to board content box
